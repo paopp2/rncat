@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use core::str;
 use defaults::*;
 use std::process::Command;
-use std::thread;
 use std::{
     io::{self, stdin, BufRead, BufReader, BufWriter, Write},
     net::{IpAddr, SocketAddr, TcpListener, TcpStream},
@@ -58,41 +57,6 @@ fn start_client(socket_address: SocketAddr) -> io::Result<()> {
     let (mut reader, mut writer) = (BufReader::new(&stream), BufWriter::new(&stream));
 
     loop {
-        let outgoing = {
-            let mut input = String::new();
-            stdin().read_line(&mut input)?;
-            input.as_bytes().to_vec()
-        };
-
-        writer.write(&outgoing)?;
-        writer.flush()?;
-
-        let incoming = {
-            let mut it = vec![];
-            reader.read_until(b'\r', &mut it)?;
-            it
-        };
-
-        println!("{}", String::from_utf8_lossy(&incoming));
-    }
-}
-
-fn start_server(socket_address: SocketAddr) -> io::Result<()> {
-    let listener = TcpListener::bind(&socket_address)?;
-
-    loop {
-        let (stream, _) = listener.accept()?;
-        thread::spawn(|| match handle_connection(stream) {
-            Ok(_) => println!("Connection closed"),
-            Err(err) => println!("Connection error: {}", err),
-        });
-    }
-}
-
-fn handle_connection(stream: TcpStream) -> io::Result<()> {
-    let (mut reader, mut writer) = (BufReader::new(&stream), BufWriter::new(&stream));
-
-    loop {
         let mut incoming: Vec<u8> = vec![];
         let num_bytes_read = reader.read_until(b'\n', &mut incoming)?;
 
@@ -125,5 +89,35 @@ fn handle_connection(stream: TcpStream) -> io::Result<()> {
                 println!("Error: {}", e);
             }
         }
+    }
+}
+
+fn start_server(socket_address: SocketAddr) -> io::Result<()> {
+    let listener = TcpListener::bind(&socket_address)?;
+    let (stream, _) = listener.accept()?;
+    handle_connection(&stream)
+}
+
+fn handle_connection(stream: &TcpStream) -> io::Result<()> {
+    println!("Connection established\n");
+    let (mut reader, mut writer) = (BufReader::new(stream), BufWriter::new(stream));
+
+    loop {
+        let outgoing = {
+            let mut input = String::new();
+            stdin().read_line(&mut input)?;
+            input.as_bytes().to_vec()
+        };
+
+        writer.write(&outgoing)?;
+        writer.flush()?;
+
+        let incoming = {
+            let mut it = vec![];
+            reader.read_until(b'\r', &mut it)?;
+            it
+        };
+
+        println!("{}", String::from_utf8_lossy(&incoming));
     }
 }

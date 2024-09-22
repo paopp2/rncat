@@ -8,8 +8,8 @@ rncat \<COMMAND\> [options]
 
 ### Commands
 
-- `server`: Run this on remote machine (where commands will be executed on)
-- `client`: Will send the commands and receive the output
+- `server`: Run this on local machine (will send and receive the commands and its output, respectively)
+- `client`: Run this on remote machine where the sent commands from server will be executed on
 - `help`: Print this message or the help of the given subcommand(s)
 
 ### Options
