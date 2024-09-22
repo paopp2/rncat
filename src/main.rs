@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use core::str;
 use defaults::*;
 use std::process::Command;
+use std::thread;
 use std::{
     io::{self, stdin, BufRead, BufReader, BufWriter, Write},
     net::{IpAddr, SocketAddr, TcpListener, TcpStream},
@@ -94,13 +95,19 @@ fn start_client(socket_address: SocketAddr) -> io::Result<()> {
 
 fn start_server(socket_address: SocketAddr) -> io::Result<()> {
     let listener = TcpListener::bind(&socket_address)?;
-    let (stream, _) = listener.accept()?;
-    handle_connection(&stream)
+
+    loop {
+        let (stream, _) = listener.accept()?;
+        thread::spawn(|| match handle_connection(stream) {
+            Ok(_) => println!("Connection closed"),
+            Err(err) => println!("Connection error: {}", err),
+        });
+    }
 }
 
-fn handle_connection(stream: &TcpStream) -> io::Result<()> {
+fn handle_connection(stream: TcpStream) -> io::Result<()> {
     println!("Connection established\n");
-    let (mut reader, mut writer) = (BufReader::new(stream), BufWriter::new(stream));
+    let (mut reader, mut writer) = (BufReader::new(&stream), BufWriter::new(&stream));
 
     loop {
         let outgoing = {
