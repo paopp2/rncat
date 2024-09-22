@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use core::str;
 use defaults::*;
+use std::process::Command;
 use std::{
     io::{self, stdin, BufRead, BufReader, BufWriter, Write},
     net::{IpAddr, SocketAddr, TcpListener, TcpStream},
@@ -81,6 +82,25 @@ fn start_server(socket_address: SocketAddr) -> io::Result<()> {
             return Ok(());
         }
 
-        println!("{}", String::from_utf8_lossy(&incoming).trim());
+        let command = String::from_utf8_lossy(&incoming).trim().to_string();
+        println!("Command: {}", command);
+        let output = Command::new("bash").arg("-c").arg(command).output();
+
+        match output {
+            Ok(output) => {
+                let (stdout, stderr) = (output.stdout, output.stderr);
+
+                if !stdout.is_empty() {
+                    println!("Output: {}", String::from_utf8_lossy(&stdout));
+                }
+
+                if !stderr.is_empty() {
+                    println!("Error: {}", String::from_utf8_lossy(&stderr));
+                }
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        }
     }
 }
