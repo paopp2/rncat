@@ -4,7 +4,7 @@ Simple reverse shell to learn Rust
 
 ## Usage
 
-rncat `<COMMAND`> [options]
+rncat \<COMMAND\> [options]
 
 ### Commands
 
@@ -14,9 +14,9 @@ rncat `<COMMAND`> [options]
 
 ### Options
 
--a, --address <ADDRESS>
+-a, --address \<ADDRESS\>
 
--p, --port <PORT>
+-p, --port \<PORT\>
 
 -h, --help
 
