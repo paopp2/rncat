@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
+use core::str;
 use defaults::*;
 use std::{
-    io::{self, stdin, BufWriter, Write},
-    net::{IpAddr, TcpStream},
+    io::{self, stdin, BufRead, BufReader, BufWriter, Write},
+    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
 };
 
 mod defaults {
@@ -31,20 +32,27 @@ enum OperationMode {
 }
 
 fn main() {
-    let args = Args::parse();
+    let Args {
+        mode,
+        address,
+        port,
+    } = Args::parse();
 
-    match args.mode {
-        OperationMode::Client => match start_client(args.address, args.port) {
+    let socket_address = SocketAddr::new(address, port);
+    match mode {
+        OperationMode::Client => match start_client(socket_address.clone()) {
             Ok(_) => println!("Client started"),
             Err(_) => println!("Failed to start client"),
         },
-        OperationMode::Server => todo!("Server mode"),
+        OperationMode::Server => match start_server(socket_address.clone()) {
+            Ok(_) => println!("Server started"),
+            Err(_) => println!("Failed to start server"),
+        },
     }
 }
 
-fn start_client(addr: IpAddr, port: u16) -> io::Result<()> {
-    let address = format!("{}:{}", addr, port);
-    let stream = TcpStream::connect(&address)?;
+fn start_client(socket_address: SocketAddr) -> io::Result<()> {
+    let stream = TcpStream::connect(&socket_address)?;
     let mut writer = BufWriter::new(stream);
 
     loop {
@@ -56,5 +64,23 @@ fn start_client(addr: IpAddr, port: u16) -> io::Result<()> {
 
         writer.write(&outgoing)?;
         writer.flush()?;
+    }
+}
+
+fn start_server(socket_address: SocketAddr) -> io::Result<()> {
+    let listener = TcpListener::bind(&socket_address)?;
+    let (stream, _) = listener.accept()?;
+    let mut reader = BufReader::new(&stream);
+
+    loop {
+        let mut incoming: Vec<u8> = vec![];
+        let num_bytes_read = reader.read_until(b'\n', &mut incoming)?;
+
+        // Check for EOF (stream closed)
+        if num_bytes_read == 0 {
+            return Ok(());
+        }
+
+        println!("{}", String::from_utf8_lossy(&incoming).trim());
     }
 }
