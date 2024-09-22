@@ -54,7 +54,7 @@ fn main() {
 
 fn start_client(socket_address: SocketAddr) -> io::Result<()> {
     let stream = TcpStream::connect(&socket_address)?;
-    let mut writer = BufWriter::new(stream);
+    let (mut reader, mut writer) = (BufReader::new(&stream), BufWriter::new(&stream));
 
     loop {
         let outgoing = {
@@ -65,13 +65,21 @@ fn start_client(socket_address: SocketAddr) -> io::Result<()> {
 
         writer.write(&outgoing)?;
         writer.flush()?;
+
+        let incoming = {
+            let mut it = vec![];
+            reader.read_until(b'\r', &mut it)?;
+            it
+        };
+
+        println!("{}", String::from_utf8_lossy(&incoming));
     }
 }
 
 fn start_server(socket_address: SocketAddr) -> io::Result<()> {
     let listener = TcpListener::bind(&socket_address)?;
     let (stream, _) = listener.accept()?;
-    let mut reader = BufReader::new(&stream);
+    let (mut reader, mut writer) = (BufReader::new(&stream), BufWriter::new(&stream));
 
     loop {
         let mut incoming: Vec<u8> = vec![];
@@ -83,20 +91,24 @@ fn start_server(socket_address: SocketAddr) -> io::Result<()> {
         }
 
         let command = String::from_utf8_lossy(&incoming).trim().to_string();
-        println!("Command: {}", command);
         let output = Command::new("bash").arg("-c").arg(command).output();
 
         match output {
             Ok(output) => {
                 let (stdout, stderr) = (output.stdout, output.stderr);
 
+                let mut outgoing = Vec::new();
                 if !stdout.is_empty() {
-                    println!("Output: {}", String::from_utf8_lossy(&stdout));
+                    outgoing = stdout.clone();
                 }
 
                 if !stderr.is_empty() {
-                    println!("Error: {}", String::from_utf8_lossy(&stderr));
+                    outgoing = stderr.clone();
                 }
+
+                outgoing.push(b'\r'); // To signal end of output
+                writer.write(&outgoing)?;
+                writer.flush()?;
             }
             Err(e) => {
                 println!("Error: {}", e);
